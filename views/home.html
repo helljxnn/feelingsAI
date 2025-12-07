@@ -1,0 +1,290 @@
+{% extends "layout.html" %}
+
+{% block styles %}
+<style>
+    .card {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #333;
+    }
+    
+    textarea {
+        width: 100%;
+        padding: 15px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 16px;
+        font-family: inherit;
+        resize: vertical;
+        min-height: 150px;
+        transition: border-color 0.3s;
+    }
+    
+    textarea:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+    
+    .btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px 40px;
+        border: none;
+        border-radius: 8px;
+        font-size: 18px;
+        font-weight: 600;
+        cursor: pointer;
+        width: 100%;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    .result {
+        margin-top: 30px;
+        padding: 25px;
+        border-radius: 10px;
+        display: none;
+    }
+    
+    .result.show {
+        display: block;
+        animation: fadeIn 0.5s;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .result.enamoramiento {
+        background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+    }
+    
+    .result.ruptura {
+        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+    }
+    
+    .result.confusión {
+        background: linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%);
+    }
+    
+    .emotion-title {
+        font-size: 2em;
+        margin-bottom: 10px;
+        color: #333;
+    }
+    
+    .confidence {
+        font-size: 1.3em;
+        color: #555;
+        margin-bottom: 20px;
+    }
+    
+    .probabilities {
+        margin-top: 15px;
+    }
+    
+    .prob-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    
+    .prob-label {
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .prob-bar {
+        flex: 1;
+        height: 25px;
+        background: rgba(255, 255, 255, 0.5);
+        border-radius: 12px;
+        margin: 0 15px;
+        overflow: hidden;
+    }
+    
+    .prob-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        transition: width 0.5s ease;
+    }
+    
+    .prob-value {
+        font-weight: 600;
+        color: #333;
+        min-width: 50px;
+        text-align: right;
+    }
+    
+    .error {
+        background: #fee;
+        color: #c33;
+        padding: 15px;
+        border-radius: 8px;
+        margin-top: 15px;
+        display: none;
+    }
+    
+    .error.show {
+        display: block;
+    }
+    
+    .loading {
+        display: none;
+        text-align: center;
+        margin-top: 15px;
+    }
+    
+    .loading.show {
+        display: block;
+    }
+    
+    .spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #667eea;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="form-group">
+        <label for="message">Escribe el mensaje a analizar:</label>
+        <textarea id="message" placeholder="Ejemplo: Te extraño mucho, cada día pienso en ti..."></textarea>
+    </div>
+    
+    <button class="btn" onclick="analyzeMessage()">Analizar Emoción</button>
+    
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Analizando mensaje...</p>
+    </div>
+    
+    <div class="error" id="error"></div>
+    
+    <div class="result" id="result">
+        <div class="emotion-title" id="emotion"></div>
+        <div class="confidence" id="confidence"></div>
+        <div class="probabilities" id="probabilities"></div>
+    </div>
+</div>
+
+<script>
+async function analyzeMessage() {
+    const message = document.getElementById('message').value.trim();
+    const resultDiv = document.getElementById('result');
+    const errorDiv = document.getElementById('error');
+    const loadingDiv = document.getElementById('loading');
+    const btn = document.querySelector('.btn');
+    
+    // Limpiar resultados previos
+    resultDiv.classList.remove('show', 'enamoramiento', 'ruptura', 'confusión');
+    errorDiv.classList.remove('show');
+    
+    if (!message) {
+        errorDiv.textContent = 'Por favor, escribe un mensaje para analizar';
+        errorDiv.classList.add('show');
+        return;
+    }
+    
+    // Mostrar loading
+    loadingDiv.classList.add('show');
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch('/analyze', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ message })
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            errorDiv.textContent = data.error;
+            errorDiv.classList.add('show');
+        } else {
+            // Mostrar resultado
+            const emotionClass = data.emotion.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            resultDiv.className = `result show ${emotionClass}`;
+            
+            document.getElementById('emotion').textContent = `${getEmotionEmoji(data.emotion)} ${data.emotion}`;
+            document.getElementById('confidence').textContent = `Confianza: ${data.confidence}%`;
+            
+            // Mostrar probabilidades
+            const probsHtml = Object.entries(data.probabilities)
+                .map(([emotion, prob]) => `
+                    <div class="prob-item">
+                        <span class="prob-label">${emotion}</span>
+                        <div class="prob-bar">
+                            <div class="prob-fill" style="width: ${prob}%"></div>
+                        </div>
+                        <span class="prob-value">${prob}%</span>
+                    </div>
+                `).join('');
+            
+            document.getElementById('probabilities').innerHTML = probsHtml;
+        }
+    } catch (error) {
+        errorDiv.textContent = 'Error al conectar con el servidor';
+        errorDiv.classList.add('show');
+    } finally {
+        loadingDiv.classList.remove('show');
+        btn.disabled = false;
+    }
+}
+
+function getEmotionEmoji(emotion) {
+    const emojis = {
+        'Enamoramiento': '❤️',
+        'Ruptura': '💔',
+        'Confusión': '😕'
+    };
+    return emojis[emotion] || '💌';
+}
+
+// Permitir enviar con Enter + Ctrl
+document.getElementById('message').addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'Enter') {
+        analyzeMessage();
+    }
+});
+</script>
+{% endblock %}
