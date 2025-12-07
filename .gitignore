@@ -16,3 +16,4 @@ ENV/
 .DS_Store
 *.log
 model_final/
+upload_model.py
