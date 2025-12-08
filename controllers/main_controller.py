@@ -1,7 +1,9 @@
 from flask import render_template, request, jsonify
 from services.emotion_service import EmotionService
 
-emotion_service = EmotionService()
+# Usar clasificador basado en reglas (use_ml_model=False)
+# Cambiar a True cuando el modelo ML esté bien entrenado
+emotion_service = EmotionService(use_ml_model=False)
 
 def index():
     """Renderiza la página principal"""

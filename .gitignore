@@ -17,3 +17,9 @@ ENV/
 *.log
 model_final/
 upload_model.py
+
+# Test files
+test_api.py
+test_model.py
+test_rule_classifier.py
+diagnose_model.py

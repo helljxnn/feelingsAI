@@ -9,7 +9,7 @@ class EmotionClassifier:
         self.tokenizer = None
         self.model = None
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.labels = {0: 'Enamoramiento', 1: 'Ruptura', 2: 'Confusión'}
+        self.labels = None
         
     def load_model(self):
         """Carga el modelo y tokenizer"""
@@ -25,6 +25,10 @@ class EmotionClassifier:
                 self.tokenizer = AutoTokenizer.from_pretrained(self.hf_model)
                 self.model = AutoModelForSequenceClassification.from_pretrained(self.hf_model)
                 print("Modelo descargado exitosamente")
+            
+            # Usar el mapeo de etiquetas del modelo
+            self.labels = self.model.config.id2label
+            print(f"Etiquetas del modelo: {self.labels}")
             
             self.model.to(self.device)
             self.model.eval()
@@ -44,9 +48,16 @@ class EmotionClassifier:
         
         with torch.no_grad():
             outputs = self.model(**inputs)
-            probabilities = torch.nn.functional.softmax(outputs.logits, dim=-1)
+            logits = outputs.logits
+            probabilities = torch.nn.functional.softmax(logits, dim=-1)
             predicted_class = torch.argmax(probabilities, dim=-1).item()
             confidence = probabilities[0][predicted_class].item()
+        
+        # Debug info
+        print(f"Texto: {text}")
+        print(f"Logits: {logits}")
+        print(f"Probabilidades: {probabilities}")
+        print(f"Clase predicha: {predicted_class} - {self.labels[predicted_class]}")
         
         return {
             'emotion': self.labels[predicted_class],
